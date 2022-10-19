@@ -5,6 +5,8 @@ import { DataApiDialect } from "kysely-data-api";
 import RDSDataService from "aws-sdk/clients/rdsdataservice.js";
 import * as fs from "fs/promises";
 import {
+  DatabaseMetadata,
+  EnumCollection,
   ExportStatementNode,
   PostgresDialect,
   Serializer,
@@ -47,13 +49,16 @@ export function createKyselyTypeGenerator(opts: Opts) {
         }
       })
     });
+
     const tables = await k.introspection.getTables();
-    const transformer = new Transformer(
-      new PostgresDialect(),
+    const transformer = new Transformer();
+
+    const nodes = transformer.transform({
+      dialect: new PostgresDialect(),
       // @ts-expect-error Issue with metadata turning everything into strings
-      db.types.camelCase === "true"
-    );
-    const nodes = transformer.transform(tables);
+      camelCase: db.types.camelCase === "true",
+      metadata: new DatabaseMetadata(tables, new EnumCollection())
+    });
     const lastIndex = nodes.length - 1;
     const last = nodes[lastIndex] as ExportStatementNode;
     nodes[lastIndex] = {
